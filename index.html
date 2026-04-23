@@ -241,23 +241,14 @@
             <table class="tbl">
               <thead><tr><th>Task</th><th>Owner</th><th>Status</th></tr></thead>
               <tbody id="ops-close-tbody">
-                <tr><td>Bank recon — main</td><td class="muted">M. Chen</td><td><span class="badge done">Done</span></td></tr>
-                <tr><td>Intercompany eliminations</td><td class="muted">S. Patel</td><td><span class="badge prog">In progress</span></td></tr>
-                <tr><td>Accruals review</td><td class="muted">J. Torres</td><td><span class="badge prog">In progress</span></td></tr>
-                <tr><td>Revenue recognition</td><td class="muted">K. Nguyen</td><td><span class="badge rev">Review</span></td></tr>
-                <tr><td>Tax provision calc</td><td class="muted">T. Kim</td><td><span class="badge open">Open</span></td></tr>
+                <tr><td colspan="3" class="muted" style="text-align:center;padding:16px;">Sync from Sheets to load today's tasks</td></tr>
               </tbody>
             </table>
           </div>
           <div class="card">
             <div class="card-title"><a href="#recon" onclick="event.preventDefault(); switchTab('recon', document.querySelectorAll('.nav-item')[2]);" style="color:inherit;text-decoration:none;border-bottom:1px dashed var(--border2);cursor:pointer;">Reconciliation by category →</a></div>
             <div id="recon-bars">
-              <div class="bar-row"><span class="bar-name">Cash &amp; bank</span><div class="bar-wrap"><div class="bar-fill g" style="width:100%"></div></div><span class="bar-pct">100%</span></div>
-              <div class="bar-row"><span class="bar-name">Accounts receivable</span><div class="bar-wrap"><div class="bar-fill g" style="width:95%"></div></div><span class="bar-pct">95%</span></div>
-              <div class="bar-row"><span class="bar-name">Fixed assets</span><div class="bar-wrap"><div class="bar-fill g" style="width:88%"></div></div><span class="bar-pct">88%</span></div>
-              <div class="bar-row"><span class="bar-name">Intercompany</span><div class="bar-wrap"><div class="bar-fill a" style="width:72%"></div></div><span class="bar-pct">72%</span></div>
-              <div class="bar-row"><span class="bar-name">Accrued liabilities</span><div class="bar-wrap"><div class="bar-fill a" style="width:60%"></div></div><span class="bar-pct">60%</span></div>
-              <div class="bar-row"><span class="bar-name">Tax accounts</span><div class="bar-wrap"><div class="bar-fill r" style="width:40%"></div></div><span class="bar-pct">40%</span></div>
+              <div class="muted" style="text-align:center;padding:16px;">Sync from Sheets to load category totals</div>
             </div>
           </div>
         </div>
@@ -550,6 +541,7 @@ function renderCloseTable(table) {
       <td>${statusBadge(get(9))}</td><td class="muted">${get(13) || '—'}</td>
     </tr>`;
   }).join('');
+  renderOpsCloseToday(table);
 }
 
 function renderReconTable(table) {
@@ -567,6 +559,78 @@ function renderReconTable(table) {
       <td class="muted">${get(13)}</td><td class="muted">${get(14)}</td>
       <td>${statusBadge(get(15))}</td>
     </tr>`;
+  }).join('');
+  renderOpsReconCategories(table);
+}
+
+function renderOpsCloseToday(table) {
+  const tbody = document.getElementById('ops-close-tbody');
+  if (!tbody) return;
+  const rows = table.rows || [];
+  const today = new Date();
+  const y = today.getFullYear(), m = today.getMonth(), d = today.getDate();
+  function get(r, i) { return (r.c[i] && (r.c[i].f || r.c[i].v)) || ''; }
+  function parseDate(c) {
+    if (!c || c.v == null) return null;
+    if (typeof c.v === 'string' && c.v.indexOf('Date(') === 0) {
+      const m = c.v.match(/Date\((\d+),(\d+),(\d+)/);
+      if (m) return new Date(+m[1], +m[2], +m[3]);
+    }
+    const dt = new Date(c.v);
+    return isNaN(dt) ? null : dt;
+  }
+  let todays = rows.filter(r => {
+    const dt = parseDate(r.c[4]);
+    return dt && dt.getFullYear()===y && dt.getMonth()===m && dt.getDate()===d;
+  });
+  if (todays.length === 0) {
+    todays = rows
+      .map(r => ({ r, dt: parseDate(r.c[4]) }))
+      .filter(x => x.dt && (get(x.r,9)||'').toLowerCase() !== 'done')
+      .sort((a,b)=>a.dt-b.dt)
+      .slice(0,6)
+      .map(x=>x.r);
+  }
+  if (todays.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="3" class="muted" style="text-align:center;padding:16px;">No tasks found</td></tr>';
+    return;
+  }
+  tbody.innerHTML = todays.slice(0,6).map(r => `<tr>
+    <td>${get(r,8)}</td>
+    <td class="muted">${get(r,5)}</td>
+    <td>${statusBadge(get(r,9))}</td>
+  </tr>`).join('');
+}
+
+function renderOpsReconCategories(table) {
+  const container = document.getElementById('recon-bars');
+  if (!container) return;
+  const rows = table.rows || [];
+  function get(r, i) { return (r.c[i] && (r.c[i].f || r.c[i].v)) || ''; }
+  const groups = {};
+  rows.forEach(r => {
+    const g = String(get(r,2) || '').trim();
+    if (!g) return;
+    const status = String(get(r,15) || '').trim().toLowerCase();
+    if (!groups[g]) groups[g] = { total: 0, done: 0 };
+    groups[g].total += 1;
+    if (status === 'done' || status === 'complete' || status === 'completed' || status === 'reconciled') {
+      groups[g].done += 1;
+    }
+  });
+  const entries = Object.entries(groups);
+  if (entries.length === 0) {
+    container.innerHTML = '<div class="muted" style="text-align:center;padding:16px;">No reconciliation groups found</div>';
+    return;
+  }
+  container.innerHTML = entries.map(([name, s]) => {
+    const pct = s.total ? Math.round(100 * s.done / s.total) : 0;
+    const cls = pct >= 85 ? 'g' : (pct >= 60 ? 'a' : 'r');
+    return `<div class="bar-row">
+      <span class="bar-name">${name}</span>
+      <div class="bar-wrap"><div class="bar-fill ${cls}" style="width:${pct}%"></div></div>
+      <span class="bar-pct">${pct}%</span>
+    </div>`;
   }).join('');
 }
 
