@@ -283,7 +283,7 @@
         <div class="card full">
           <div class="card-title">Full close checklist</div>
           <table class="tbl">
-            <thead><tr><th>Task</th><th>Category</th><th>Owner</th><th>Due date</th><th>Priority</th><th>Status</th><th>Notes</th></tr></thead>
+            <thead><tr><th>Task</th><th>Category</th><th>Preparer</th><th>Due date</th><th>Time required</th><th>Status</th><th>Notes</th></tr></thead>
             <tbody id="close-tbody">
               <tr><td>Bank recon — operating</td><td class="muted">Banking</td><td class="muted">M. Chen</td><td class="muted">Apr 1</td><td><span class="badge high">High</span></td><td><span class="badge done">Done</span></td><td class="muted">—</td></tr>
               <tr><td>Bank recon — payroll</td><td class="muted">Banking</td><td class="muted">M. Chen</td><td class="muted">Apr 1</td><td><span class="badge high">High</span></td><td><span class="badge done">Done</span></td><td class="muted">—</td></tr>
@@ -321,7 +321,7 @@
         <div class="card full">
           <div class="card-title">Account reconciliation detail</div>
           <table class="tbl">
-            <thead><tr><th>Account #</th><th>Account name</th><th class="right">GL balance</th><th class="right">Recon balance</th><th class="right">Variance</th><th>Owner</th><th>Frequency</th><th>Status</th></tr></thead>
+            <thead><tr><th>Parent account</th><th>Account</th><th class="right">GL balance</th><th class="right">Recon balance</th><th class="right">Variance</th><th>Preparer</th><th>Reviewer</th><th>Status</th></tr></thead>
             <tbody id="recon-tbody">
               <tr><td class="muted">1010</td><td>Cash — operating</td><td class="right">$1,240,500</td><td class="right">$1,240,500</td><td class="right" style="color:var(--green);">$0</td><td class="muted">M. Chen</td><td class="muted">Monthly</td><td><span class="badge done">Done</span></td></tr>
               <tr><td class="muted">1020</td><td>Cash — payroll</td><td class="right">$412,300</td><td class="right">$412,300</td><td class="right" style="color:var(--green);">$0</td><td class="muted">M. Chen</td><td class="muted">Monthly</td><td><span class="badge done">Done</span></td></tr>
@@ -512,7 +512,7 @@ function switchTab(id, el) {
    GOOGLE SHEETS INTEGRATION
    ──────────────────────────────────────────── */
 async function loadFromSheets() {
-  if (SHEET_ID === '1lizTrKGmW3ZJx-stoVFbTVJ7KLChOJCUbOcPosY5K2s') {
+  if (!SHEET_ID) {
     alert('Set your SHEET_ID at the top of the script to connect live data.\n\nSee the setup guide (SETUP.md) for instructions.');
     return;
   }
@@ -521,12 +521,12 @@ async function loadFromSheets() {
     const base = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=`;
 
     // Load close tasks
-    const closeRes = await fetch(base + SHEET_TABS.closeTasks);
+    const closeRes = await fetch(base + encodeURIComponent(SHEET_TABS.closeTasks) + '&range=A6:O');
     const closeJson = JSON.parse((await closeRes.text()).match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\)/)[1]);
     renderCloseTable(closeJson.table);
 
     // Load recon
-    const reconRes = await fetch(base + SHEET_TABS.recon);
+    const reconRes = await fetch(base + encodeURIComponent(SHEET_TABS.recon) + '&range=A7:R');
     const reconJson = JSON.parse((await reconRes.text()).match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\)/)[1]);
     renderReconTable(reconJson.table);
 
@@ -541,7 +541,7 @@ async function loadFromSheets() {
 }
 
 function statusBadge(s) {
-  const map = { 'Done': 'done', 'In Progress': 'prog', 'Open': 'open', 'Review': 'rev' };
+  const map = { 'Done': 'done', 'Complete': 'done', 'In Progress': 'prog', 'Open': 'open', 'Not Started': 'open', 'Review': 'rev', 'Blocked': 'high' };
   const cls = map[s] || 'low';
   return `<span class="badge ${cls}">${s}</span>`;
 }
@@ -551,11 +551,11 @@ function renderCloseTable(table) {
   const tbody = document.getElementById('close-tbody');
   tbody.innerHTML = rows.map(r => {
     const cols = r.c || [];
-    const get = i => (cols[i] && cols[i].v != null) ? cols[i].v : '';
+    const get = i => (cols[i] && cols[i].v != null) ? (cols[i].f != null ? cols[i].f : cols[i].v) : '';
     return `<tr>
-      <td>${get(0)}</td><td class="muted">${get(1)}</td><td class="muted">${get(2)}</td>
-      <td class="muted">${get(3)}</td><td>${statusBadge(get(4))}</td>
-      <td>${statusBadge(get(5))}</td><td class="muted">${get(6) || '—'}</td>
+      <td>${get(8)}</td><td class="muted">${get(6)}</td><td class="muted">${get(5)}</td>
+      <td class="muted">${get(4)}</td><td class="muted">${get(11)}</td>
+      <td>${statusBadge(get(9))}</td><td class="muted">${get(13) || '—'}</td>
     </tr>`;
   }).join('');
 }
@@ -565,15 +565,15 @@ function renderReconTable(table) {
   const tbody = document.getElementById('recon-tbody');
   tbody.innerHTML = rows.map(r => {
     const cols = r.c || [];
-    const get = i => (cols[i] && cols[i].v != null) ? cols[i].v : '';
-    const variance = parseFloat(get(4));
-    const varColor = variance === 0 ? 'var(--green)' : variance < 0 ? 'var(--red)' : 'var(--amber)';
+    const get = i => (cols[i] && cols[i].v != null) ? (cols[i].f != null ? cols[i].f : cols[i].v) : '';
+    const variance = (cols[11] && cols[11].v != null) ? Number(cols[11].v) : NaN;
+    const varColor = isNaN(variance) ? 'var(--text3)' : variance === 0 ? 'var(--green)' : variance < 0 ? 'var(--red)' : 'var(--amber)';
     return `<tr>
-      <td class="muted">${get(0)}</td><td>${get(1)}</td>
-      <td class="right">${get(2)}</td><td class="right">${get(3)}</td>
-      <td class="right" style="color:${varColor};">${get(4)}</td>
-      <td class="muted">${get(5)}</td><td class="muted">${get(6)}</td>
-      <td>${statusBadge(get(7))}</td>
+      <td class="muted">${get(3)}</td><td>${get(4)}</td>
+      <td class="right">${get(5)}</td><td class="right">${get(10)}</td>
+      <td class="right" style="color:${varColor};">${get(11)}</td>
+      <td class="muted">${get(13)}</td><td class="muted">${get(14)}</td>
+      <td>${statusBadge(get(15))}</td>
     </tr>`;
   }).join('');
 }
