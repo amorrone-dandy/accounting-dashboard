@@ -237,7 +237,7 @@
         </div>
         <div class="row2">
           <div class="card">
-            <div class="card-title">Close tasks — today</div>
+            <div class="card-title"><a href="#close" onclick="event.preventDefault(); switchTab('close', document.querySelectorAll('.nav-item')[1]);" style="color:inherit;text-decoration:none;border-bottom:1px dashed var(--border2);cursor:pointer;">Close tasks — today →</a></div>
             <table class="tbl">
               <thead><tr><th>Task</th><th>Owner</th><th>Status</th></tr></thead>
               <tbody id="ops-close-tbody">
@@ -250,7 +250,7 @@
             </table>
           </div>
           <div class="card">
-            <div class="card-title">Reconciliation by category</div>
+            <div class="card-title"><a href="#recon" onclick="event.preventDefault(); switchTab('recon', document.querySelectorAll('.nav-item')[2]);" style="color:inherit;text-decoration:none;border-bottom:1px dashed var(--border2);cursor:pointer;">Reconciliation by category →</a></div>
             <div id="recon-bars">
               <div class="bar-row"><span class="bar-name">Cash &amp; bank</span><div class="bar-wrap"><div class="bar-fill g" style="width:100%"></div></div><span class="bar-pct">100%</span></div>
               <div class="bar-row"><span class="bar-name">Accounts receivable</span><div class="bar-wrap"><div class="bar-fill g" style="width:95%"></div></div><span class="bar-pct">95%</span></div>
@@ -259,14 +259,6 @@
               <div class="bar-row"><span class="bar-name">Accrued liabilities</span><div class="bar-wrap"><div class="bar-fill a" style="width:60%"></div></div><span class="bar-pct">60%</span></div>
               <div class="bar-row"><span class="bar-name">Tax accounts</span><div class="bar-wrap"><div class="bar-fill r" style="width:40%"></div></div><span class="bar-pct">40%</span></div>
             </div>
-          </div>
-        </div>
-        <div class="card full">
-          <div class="card-title">Budget vs actuals — month to date ($000s)</div>
-          <div style="position:relative;height:220px;"><canvas id="bvaChart"></canvas></div>
-          <div class="legend">
-            <span><span class="dot" style="background:#B5D4F4"></span>Budget</span>
-            <span><span class="dot" style="background:#97C459"></span>Actual</span>
           </div>
         </div>
       </div>
@@ -591,25 +583,6 @@ function makeChart(id, config) {
 }
 
 function renderAllCharts() {
-  makeChart('bvaChart', {
-    type: 'bar',
-    data: {
-      labels: ['Revenue','COGS','Gross profit','S&M','G&A','R&D','EBITDA'],
-      datasets: [
-        { label: 'Budget', data: [3889,1789,2100,560,400,380,760], backgroundColor: '#B5D4F4' },
-        { label: 'Actual', data: [4200,1927,2273,524,412,397,940], backgroundColor: '#97C459' }
-      ]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { ticks: { font: { size: 11 }, autoSkip: false, maxRotation: 15 } },
-        y: { ticks: { callback: v => '$' + v.toLocaleString() } }
-      }
-    }
-  });
-
   makeChart('closeChart', {
     type: 'line',
     data: {
