@@ -479,10 +479,10 @@
 /* ────────────────────────────────────────────
    CONFIGURATION — replace with your Sheet ID
    ──────────────────────────────────────────── */
-const SHEET_ID = '1HNPRtDeAdSgq5k8Ih7nNocxeyxxrovPt';
+const SHEET_ID = '1lizTrKGmW3ZJx-stoVFbTVJ7KLChOJCUbOcPosY5K2s';
 const SHEET_TABS = {
-  closeTasks:  'CloseTasks',
-  recon:       'Reconciliation',
+  closeTasks:  'Close Checklist',
+  recon:       'Reconciliation Checklist',
   financials:  'Financials',
   aging:       'Aging'
 };
@@ -512,7 +512,7 @@ function switchTab(id, el) {
    GOOGLE SHEETS INTEGRATION
    ──────────────────────────────────────────── */
 async function loadFromSheets() {
-  if (SHEET_ID === '1HNPRtDeAdSgq5k8Ih7nNocxeyxxrovPt') {
+  if (SHEET_ID === '1lizTrKGmW3ZJx-stoVFbTVJ7KLChOJCUbOcPosY5K2s') {
     alert('Set your SHEET_ID at the top of the script to connect live data.\n\nSee the setup guide (SETUP.md) for instructions.');
     return;
   }
